@@ -17,17 +17,23 @@
 #define BUF 1024
 #define URLPREFIX "htdocs"
 
+/**
+ * use to out put the error and exit
+ * @PARAMETER
+ * err_msg: a printf-like string, contains %s, %d, etc, followed by other arguement
+ */
 void exit_on_error(const char *err_msg, ...)
 {
-    // char *err_buf[1024];
-    // strerror_r(errno, err_buf, siezeof(err_buf));
     va_list arglist;
     va_start(arglist, err_msg);
     vfprintf(stderr, err_msg, arglist);
-    // fprintf(stderr, " %s", err_buf);
     va_end(arglist);
     exit(EXIT_FAILURE);
 }
+
+/**
+ * same as exit_on_error, use to show log
+ **/
 
 void logging(const char *format_str, ...)
 {
@@ -36,6 +42,13 @@ void logging(const char *format_str, ...)
     vprintf(format_str, arglist);
     va_end(arglist);
 }
+
+/**
+ * readline a line from socket, and put it in buf.
+ * @RETURN
+ * on success, return number of character stored in buf
+ * on error, -1 or -2 is returned, -1 indicate recv system call error, -2 indicate buf is too small. 
+*/
 
 ssize_t readline(int client_sock, char *buf, size_t buf_len) // need update
 {
@@ -48,6 +61,10 @@ ssize_t readline(int client_sock, char *buf, size_t buf_len) // need update
     }
     local_buf[recv_ret] = '\0';
     int should_read = strstr(local_buf, "\r\n") - local_buf + 2;
+    if (should_read == NULL)
+    {
+        return -2;
+    }
     // read until the line end
     // should_read won't be bigger than buf_len, but what if it is bigger than buf_len?
     recv_ret = recv(client_sock, buf, should_read, 0);
@@ -59,12 +76,20 @@ ssize_t readline(int client_sock, char *buf, size_t buf_len) // need update
     return recv_ret;
 }
 
+/**
+ * show the error page, tell client the server got a bad request
+*/
+
 void bad_request(int client_sock)
 {
     char buf[1024];
     sprintf(buf, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n\<p>Please check your request.</p>");
     send(client_sock, buf, strlen(buf), 0);
 }
+
+/**
+ * add a prefix to the request url, if url is "/", add index.html
+*/
 
 void modify_url(char *url)
 {
@@ -79,6 +104,10 @@ void modify_url(char *url)
     sprintf(url, "%s%s", URLPREFIX, local_url);
 }
 
+/**
+ * show a error page, tell client the resource requested can not be found.
+*/
+
 void not_found(int client_sock, char *url)
 {
     char buf[1024];
@@ -88,6 +117,11 @@ void not_found(int client_sock, char *url)
     puts("not_found");
 }
 
+/**
+ * when receive request which is not POST or GET, tell client it has not been implemented,
+ * and I think it won't be.
+*/
+
 
 void unimplemented(int client_sock, char *method)
 {
@@ -95,6 +129,10 @@ void unimplemented(int client_sock, char *method)
     sprintf(buf, "HTTP/1.1 400 Bad Request\r\nContent-Type: text/html\r\n\r\n<p>request method %s is not implemented yet.</p>\r\n", method);
     send(client_sock, buf, strlen(buf), 0);
 }
+
+/**
+ * when client request a regular file, this function use url to retrive the file and give it to client.
+*/
 
 void return_file(int client_sock, char *url)
 {
@@ -115,6 +153,11 @@ void return_file(int client_sock, char *url)
         send(client_sock, buf, strlen(buf), 0);
     }
 }
+
+/**
+ * if client request cgi, this function call cgi program
+ * unfinished
+*/
 
 void exec_cgi(int client_sock, char *url)
 {
@@ -165,6 +208,10 @@ void exec_cgi(int client_sock, char *url)
         send(client_sock, line_buf, read_num, 0);
     }
 }
+
+/**
+ * accept a client request in a pthread.
+*/
 
 void *accept_request(void *arg)
 {

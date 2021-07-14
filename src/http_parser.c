@@ -29,7 +29,6 @@ void http_parser_destroy(Http_request_t *request_struct)
 {
     free(request_struct->url);
     head_destroy(request_struct->header);
-    // body_destroy(request_struct->body);
     free(request_struct);
 }
 
@@ -68,7 +67,7 @@ static Request_status parse_request_header(Http_request_t *result, char *start_p
     char *key_value = (char *)malloc(strlen(start_pos) + 1);
     strcpy(key_value, start_pos);
     key_value[strlen(start_pos)] = '\0';
-    key_value[key_len] = '\0'; // remove colon
+    key_value[key_len] = '\0';     // remove colon
     key_value[key_len + 1] = '\0'; //remove space after colon;
     header->key = key_value;       // remove first double quote
     header->value = key_value + key_len + 2;
